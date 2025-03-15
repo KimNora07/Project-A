@@ -1,96 +1,120 @@
-using System.Runtime.InteropServices;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Rendering;
-using JetBrains.Annotations;
 using System.Collections;
-using TMPro;
+using System.Collections.Generic;
 
 public class Window : MonoBehaviour
 {
     [Header("Button")]
-    [SerializeField] private Button windowButton;
-    [SerializeField] private Button turnOffButton;
     [SerializeField] private Button turnOffButton2;
     [SerializeField] private Button hibernateButton;
     [SerializeField] private Button restartButton;
 
     [Header("GameObject")]
-    [SerializeField] private GameObject windowPanel;
-    [SerializeField] private GameObject turnOffPanel;
     [SerializeField] private GameObject turnOffScreenPanel;
-
-    [Header("Check")]
-    [SerializeField] private bool isHibernate = false;
 
     [Header("Random")]
     [SerializeField] private float randomBegin;
     [SerializeField] private float randomEnd;
+    
+    [Space(20)]
+    [Header("PopupUI")]
+    public PopupUI startMenuPopup;
+    public PopupUI powerMenuPopup;
 
-    [Header("Text")]
-    [SerializeField] private TMP_Text turnOffScreenText;
+    private LinkedList<PopupUI> activePopupUILList;
+    private List<PopupUI> allPopupUIList;
 
     private void Awake()
     {
         Init();
-        windowButton.onClick.AddListener(() => { Popup(windowPanel); });
-        turnOffButton.onClick.AddListener( () => { Popup(turnOffPanel); });
-        turnOffButton2.onClick.AddListener(() => { TurnOff(); });
-        hibernateButton.onClick.AddListener( () => { Hibernate(); });
-        restartButton.onClick.AddListener( () => { Restart(); });
-    }
-
-    private void Update()
-    {
-        if (isHibernate)
-        {
-            if (Input.GetMouseButtonDown(0))
-            {
-                isHibernate = false;
-                OnDemandRendering.renderFrameInterval = 1;
-            }
-        }
+        InitCloseAll();
     }
 
     private void Init()
     {
-        windowPanel.SetActive(false);
-        turnOffPanel.SetActive(false);
-        turnOffScreenPanel.SetActive(false);
+        activePopupUILList = new LinkedList<PopupUI>();
+        allPopupUIList = new List<PopupUI>()
+        {
+            startMenuPopup, powerMenuPopup
+        };
 
+        foreach (var popup in allPopupUIList)
+        {
+            popup.popupUIButton.onClick.AddListener(() => { ToggleOpenClosePopup(popup); });
+        }
+        
+        turnOffScreenPanel.SetActive(false);
+        
         Application.targetFrameRate = 60;
         OnDemandRendering.renderFrameInterval = 1;
     }
 
-    private void Popup(GameObject obj)
+    private void InitCloseAll()
     {
-        obj.SetActive(!obj.activeSelf);
+        foreach (var popup in allPopupUIList)
+        {
+            activePopupUILList.Remove(popup);
+            popup.gameObject.SetActive(false);
+        }
+    }
+
+    private void ToggleOpenClosePopup(PopupUI popup)
+    {
+        if(!popup.gameObject.activeSelf) OpenPopup(popup);
+        else ClosePopup(popup);
+    }
+
+    private void OpenPopup(PopupUI popup)
+    {
+        activePopupUILList.AddFirst(popup);
+        popup.gameObject.SetActive(true);
+        RefreshAllPopupDepth();
+    }
+
+    private void ClosePopup(PopupUI popup)
+    {
+        int popupIndex = popup.siblingIndex;
+        var popupsToRemove = new List<PopupUI>();
+        foreach (var ui in activePopupUILList)
+        {
+            if (ui.siblingIndex >= popupIndex)
+            {
+                popupsToRemove.Add(ui);
+            }
+        }
+        foreach (var ui in popupsToRemove)
+        {
+            activePopupUILList.Remove(ui);
+            ui.gameObject.SetActive(false);
+        }
+        RefreshAllPopupDepth();
+    }
+    
+    private void RefreshAllPopupDepth()
+    {
+        foreach (var popup in activePopupUILList)
+        {
+            popup.transform.SetAsFirstSibling();
+        }
     }
 
     private void TurnOff()
     {
-        float rand = Random.Range(randomBegin, randomEnd);
-        turnOffScreenText.text = "종료 중";
+        float rand = Random.Range(randomBegin, randomEnd);       
         StartCoroutine(TurnOffCoolTime(rand));
-    }
-
-    private IEnumerator TurnOffCoolTime(float value)
-    {
-        turnOffScreenPanel.SetActive(true);
-        yield return new WaitForSeconds(value);
-        Application.Quit();
     }
 
     private void Hibernate()
     {
-        isHibernate = true;
         OnDemandRendering.renderFrameInterval = 3;
     }
 
     public void Restart()
     {
-        turnOffScreenText.text = "재시작 중";
+        float rand = Random.Range(randomBegin, randomEnd);
+        turnOffScreenPanel.SetActive(true);
 
         string[] endings = new string[]
         {
@@ -103,11 +127,24 @@ public class Window : MonoBehaviour
             {
                 if (file.ToLower().EndsWith("." + ending))
                 {
-                    System.Diagnostics.Process.Start(file);
-                    Application.Quit();
+                    StartCoroutine(RestartCoolTime(file, rand));
                     return;
                 }
             }
         }
+    }
+
+    private IEnumerator RestartCoolTime(string file, float value)
+    {
+        yield return new WaitForSeconds(value);
+        System.Diagnostics.Process.Start(file);
+        Application.Quit();
+    }
+
+    private IEnumerator TurnOffCoolTime(float value)
+    {  
+        turnOffScreenPanel.SetActive(true);
+        yield return new WaitForSeconds(value);
+        Application.Quit();
     }
 }
