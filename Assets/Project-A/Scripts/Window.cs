@@ -6,32 +6,43 @@ using System.Collections.Generic;
 
 public class Window : MonoBehaviour
 {
-    [Header("Button")]
-    [SerializeField] private Button turnOffButton2;
-    [SerializeField] private Button hibernateButton;
-    [SerializeField] private Button restartButton;
-
-    [Header("GameObject")]
-    [SerializeField] private GameObject turnOffScreenPanel;
-
-    [Header("Random")]
-    [SerializeField] private float randomBegin;
-    [SerializeField] private float randomEnd;
-    
-    [Space(20)]
+    /*******************************************************************/
+    /*                        Public Field                             */
+    /*******************************************************************/
     [Header("PopupUI")]
     public PopupUI startMenuPopup;
     public PopupUI powerMenuPopup;
+    
+    [Header("PowerMenuButton")]
+    public Button shutDownButton;
+    public Button hibernateButton;
+    public Button restartButton;
+    
+    [Header("GameObject")]
+    public GameObject shutDownScreenPanel;
+    
+    [Header("RandomValue")]
+    [Range(0, 10)] public float minValue;
+    [Range(0, 10)] public float maxValue;
 
+    /*******************************************************************/
+    /*                        Private Field                            */
+    /*******************************************************************/
     private LinkedList<PopupUI> activePopupUILList;
     private List<PopupUI> allPopupUIList;
-
+    
+    /*******************************************************************/
+    /*                        Unity CallBacks                          */
+    /*******************************************************************/
     private void Awake()
     {
         Init();
         InitCloseAll();
     }
-
+    
+    /*******************************************************************/
+    /*                        Private Methods                          */
+    /*******************************************************************/
     private void Init()
     {
         activePopupUILList = new LinkedList<PopupUI>();
@@ -39,16 +50,17 @@ public class Window : MonoBehaviour
         {
             startMenuPopup, powerMenuPopup
         };
-
         foreach (var popup in allPopupUIList)
         {
             popup.popupUIButton.onClick.AddListener(() => { ToggleOpenClosePopup(popup); });
         }
-        
-        turnOffScreenPanel.SetActive(false);
-        
+        shutDownScreenPanel.SetActive(false);
         Application.targetFrameRate = 60;
         OnDemandRendering.renderFrameInterval = 1;
+        
+        shutDownButton.onClick.AddListener(() => {ShutDown();});
+        hibernateButton.onClick.AddListener(() => {Hibernate();});
+        restartButton.onClick.AddListener(() => {Restart();});
     }
 
     private void InitCloseAll()
@@ -100,9 +112,9 @@ public class Window : MonoBehaviour
         }
     }
 
-    private void TurnOff()
+    private void ShutDown()
     {
-        float rand = Random.Range(randomBegin, randomEnd);       
+        float rand = Random.Range(minValue, maxValue);       
         StartCoroutine(TurnOffCoolTime(rand));
     }
 
@@ -111,10 +123,10 @@ public class Window : MonoBehaviour
         OnDemandRendering.renderFrameInterval = 3;
     }
 
-    public void Restart()
+    private void Restart()
     {
-        float rand = Random.Range(randomBegin, randomEnd);
-        turnOffScreenPanel.SetActive(true);
+        float rand = Random.Range(minValue, maxValue);
+        shutDownScreenPanel.SetActive(true);
 
         string[] endings = new string[]
         {
@@ -143,7 +155,7 @@ public class Window : MonoBehaviour
 
     private IEnumerator TurnOffCoolTime(float value)
     {  
-        turnOffScreenPanel.SetActive(true);
+        shutDownScreenPanel.SetActive(true);
         yield return new WaitForSeconds(value);
         Application.Quit();
     }
